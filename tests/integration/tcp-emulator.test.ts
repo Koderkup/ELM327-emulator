@@ -51,6 +51,7 @@ describe('TCP end-to-end ELM session', () => {
   }, 10000);
 
   afterAll(async () => {
+    await new Promise((r) => setTimeout(r, 50));
     await transport.close();
   }, 10000);
 });
