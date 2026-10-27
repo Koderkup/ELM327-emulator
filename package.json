@@ -1,0 +1,36 @@
+{
+  "name": "elm327-emulator",
+  "version": "0.1.0",
+  "description": "ELM327 OBD-II emulator",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "elm": "dist/cli/main.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli/main.ts",
+    "console": "tsx src/cli/console.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "pino": "^9.0.0",
+    "pino-pretty": "^11.0.0",
+    "serialport": "^13.0.0",
+    "yaml": "^2.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "fast-check": "4.10.2",
+    "tsx": "^4.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,14 @@
+import pino from 'pino';
+
+export const logger = pino({
+  level: process.env.LOG_LEVEL ?? 'info',
+  transport: process.env.NODE_ENV !== 'test' 
+    ? { target: 'pino-pretty', options: { colorize: true } }
+    : undefined,
+});
+
+export type LogLevel = 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
+
+export function setLogLevel(level: LogLevel): void {
+  logger.level = level;
+}
