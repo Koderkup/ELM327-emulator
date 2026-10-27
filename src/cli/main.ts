@@ -32,7 +32,7 @@ program.action(async (opts) => {
   else if (opts.transport === 'slcan') transport = new SlcanTransport(opts.device, Number(opts.baud));
   else transport = new TcpTransport(opts.host, Number(opts.port));
 
-  const scenarioPath = fileURLToPath(new URL(`../../../scenarios/${opts.scenario}.yaml`, import.meta.url));
+  const scenarioPath = fileURLToPath(new URL(`../../scenarios/${opts.scenario}.yaml`, import.meta.url));
   const scenario = loadScenario(scenarioPath);
   const vehicle = new Vehicle(scenario);
 
