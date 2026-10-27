@@ -23,36 +23,31 @@ export class KLineTransport implements Transport {
   }
 
   private async readLine(timeoutMs: number): Promise<string> {
-    const args = {};
-    return new Promise((resolve, reject) => {
-      let data = '';
-      const timer = setTimeout(() => {
-        this.port?.removeListener('data', onData);
-        this.port?.removeListener('error', onError);
-        this.port?.unpipe?.(this.port!);
-        resolve(data);
-      }, timeoutMs);
-
+    const chunks: Buffer[] = [];
+    return new Promise<string>((resolve, reject) => {
       const onData = (chunk: Buffer) => {
-        data += chunk.toString('latin1');
-        if (data.includes('\r')) {
-          clearTimeout(timer);
+        chunks.push(chunk);
+        if (chunk.includes('\r')) {
           this.port?.removeListener('data', onData);
           this.port?.removeListener('error', onError);
-          this.port?.unpipe?.(this.port!);
-          resolve(data.replace(/\r$/, ''));
+          const data = Buffer.concat(chunks).toString('latin1').replace(/\r$/, '');
+          resolve(data);
         }
       };
       const onError = (err: Error) => {
-        clearTimeout(timer);
         this.port?.removeListener('data', onData);
         this.port?.removeListener('error', onError);
-        this.port?.unpipe?.(this.port!);
         reject(err);
       };
       this.port?.on('data', onData);
       this.port?.on('error', onError);
-      this.port?.pipe(this.port!, args);
+      setImmediate(() => {
+        setTimeout(() => {
+          this.port?.removeListener('data', onData);
+          this.port?.removeListener('error', onError);
+          resolve(Buffer.concat(chunks).toString('latin1').replace(/\r$/, ''));
+        }, timeoutMs);
+      });
     });
   }
 

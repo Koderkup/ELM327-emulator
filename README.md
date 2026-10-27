@@ -96,5 +96,3 @@ npm run build       # production build
 - K-Line is minimal; use hardware adapter for production
 - UDS security access used simulation (seed/key)
 - Native C++ component not implemented (Bluetooth RFCOMM deferred)
-
-See `TXT.notes` for the full specification.

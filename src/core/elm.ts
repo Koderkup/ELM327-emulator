@@ -1,4 +1,5 @@
 import type { Vehicle } from '../vehicle/vehicle.js';
+import type { Transport } from '../transport/transport.js';
 
 export interface ElmState {
   echo: boolean;
@@ -27,6 +28,68 @@ function formatResponse(payload: string, respId: string | null, state: ElmState)
   if (state.spaces === false) out = out.replace(/\s/g, '');
   if (state.headers && respId) out = `${respId} ${out}`;
   return out + '\r>';
+}
+
+/**
+ * Split a byte stream into CR-delimited command lines, buffering incomplete
+ * input. Handles LF-after-CR gracefully and multiple commands in one chunk.
+ *
+ * This is a deterministic framing helper so callers do not assume that one
+ * transport read corresponds to exactly one complete command.
+ */
+export function splitLines(buf: string, acc: string): { lines: string[]; rest: string } {
+  const combined = acc + buf;
+  const lines: string[] = [];
+  let rest = combined;
+  let idx: number;
+  while ((idx = rest.indexOf('\r')) >= 0) {
+    lines.push(rest.slice(0, idx).trim());
+    rest = rest.slice(idx + 1);
+    if (rest.startsWith('\n')) rest = rest.slice(1);
+  }
+  return { lines, rest };
+}
+
+/**
+ * Build the response for a single command line, applying echo + formatting.
+ * Returns the full bytes (echo + response) to send back.
+ */
+export function buildResponse(line: string, state: ElmState, vehicle?: Vehicle): string {
+  const upper = line.toUpperCase().trim();
+  let out: string;
+  if (upper.startsWith('AT')) {
+    out = processAt(line, state);
+  } else {
+    out = processObd(line, state, vehicle);
+  }
+  if (state.echo) out = line + '\r' + out;
+  return out;
+}
+
+/**
+ * Run the ELM command engine over a transport until it closes or the abort
+ * signal fires. Used by the CLI, interactive console, and integration tests.
+ */
+export async function runSession(
+  transport: Transport,
+  vehicle: Vehicle | undefined,
+  signal?: AbortSignal,
+): Promise<void> {
+  const state = defaultState();
+  let buf = '';
+  for await (const chunk of transport.read(signal)) {
+    const text = new TextDecoder().decode(chunk);
+    const { lines, rest } = splitLines(text, buf);
+    buf = rest;
+    for (const line of lines) {
+      if (!line) continue;
+      const out = buildResponse(line, state, vehicle);
+      if (out) {
+        await transport.write(new TextEncoder().encode(out));
+      }
+    }
+    if (signal?.aborted) break;
+  }
 }
 
 export function processAt(cmd: string, state: ElmState): string {

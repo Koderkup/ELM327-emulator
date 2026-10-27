@@ -1,5 +1,5 @@
 import { createInterface } from 'node:readline/promises';
-import { defaultState, processAt, processObd } from '../core/elm.js';
+import { defaultState, buildResponse } from '../core/elm.js';
 import { loadScenario } from '../vehicle/scenario.js';
 import { Vehicle } from '../vehicle/vehicle.js';
 import { fileURLToPath } from 'node:url';
@@ -12,7 +12,7 @@ export async function runConsole(scenarioName: string = 'default'): Promise<void
   const state = defaultState();
 
   const rl = createInterface({ input: process.stdin, output: process.stdout, prompt: '> ' });
-  logger.info('ELM327 interactive console — type AT/OBD commands or "quit"');
+  logger.info('ELM327 interactive console -- type AT/OBD commands or quit');
 
   rl.prompt();
   for await (const line of rl) {
@@ -20,14 +20,10 @@ export async function runConsole(scenarioName: string = 'default'): Promise<void
     if (cmd.toLowerCase() === 'quit' || cmd.toLowerCase() === 'exit') break;
     if (!cmd) { rl.prompt(); continue; }
 
-    let out: string;
-    if (cmd.toUpperCase().startsWith('AT')) {
-      out = processAt(cmd, state);
-    } else {
-      out = processObd(cmd, state, vehicle);
+    const out = buildResponse(cmd, state, vehicle);
+    if (out) {
+      process.stdout.write(out.replace(/\r/g, '\n') + '\n');
     }
-    if (state.echo) console.log(cmd);
-    console.log(out.trim());
     rl.prompt();
   }
   rl.close();

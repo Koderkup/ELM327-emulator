@@ -5,6 +5,12 @@ export class TcpTransport implements Transport {
   private server?: net.Server;
   private socket?: net.Socket;
   constructor(private host = '127.0.0.1', private port = 35000) {}
+
+  /** Bound local port. Use after `open()` to discover the actual assigned port (e.g. when constructed with port 0). */
+  address(): { port: number; family: string; address: string } | null {
+    return this.server?.address() as { port: number; family: string; address: string } | null;
+  }
+
   async open(): Promise<void> {
     this.server = net.createServer((s) => { this.socket = s; });
     await new Promise<void>((res, rej) => {
@@ -28,6 +34,6 @@ export class TcpTransport implements Transport {
   }
   async close(): Promise<void> {
     this.socket?.destroy();
-    this.server?.close();
+    await new Promise<void>((res) => this.server?.close(() => res()));
   }
 }

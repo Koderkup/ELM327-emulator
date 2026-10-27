@@ -3,7 +3,7 @@ import { TcpTransport } from '../transport/tcp.js';
 import { SerialTransport } from '../transport/serial.js';
 import { SlcanTransport } from '../transport/slcan.js';
 import { KLineTransport } from '../transport/kline.js';
-import { defaultState, processAt, processObd } from '../core/elm.js';
+import { runSession } from '../core/elm.js';
 import type { Transport } from '../transport/transport.js';
 import { loadScenario } from '../vehicle/scenario.js';
 import { Vehicle } from '../vehicle/vehicle.js';
@@ -22,7 +22,7 @@ program.option('-s, --scenario <name>', 'scenario', 'default');
 program.option('-l, --log-level <level>', 'log level (fatal|error|warn|info|debug|trace)', 'info');
 
 program.action(async (opts) => {
-  setLogLevel(opts.log_level as any);
+  setLogLevel((opts.logLevel ?? opts.log_level) as any);
 
   let transport: Transport;
   if (opts.transport === 'serial') transport = new SerialTransport(opts.device, Number(opts.baud));
@@ -37,28 +37,11 @@ program.action(async (opts) => {
   await transport.open();
   logger.info(`ELM327 emulator started (${opts.transport}) — scenario: ${vehicle.scenario.name}`);
 
-  const state = defaultState();
-  let buf = '';
-  for await (const chunk of transport.read()) {
-    buf += new TextDecoder().decode(chunk);
-    while (buf.includes('\r')) {
-      const idx = buf.indexOf('\r');
-      const line = buf.slice(0, idx).trim();
-      buf = buf.slice(idx + 1);
-      if (!line) continue;
-      logger.debug(`RX: ${line}`);
-      let out = '';
-      if (line.toUpperCase().startsWith('AT')) {
-        out = processAt(line, state);
-      } else {
-        out = processObd(line, state, vehicle);
-      }
-      logger.debug(`TX: ${out.trim()}`);
-      if (state.echo) out = line + '\r' + out;
-      await transport.write(new TextEncoder().encode(out));
-    }
-  }
+  const ac = new AbortController();
+  process.on('SIGINT', () => { logger.info('shutdown'); ac.abort(); });
+  await runSession(transport, vehicle, ac.signal);
+  await transport.close();
+  process.exit(0);
 });
 
 program.parseAsync().catch((e) => { logger.error(e); process.exit(1); });
-process.on('SIGINT', () => { logger.info('shutdown'); process.exit(0); });
