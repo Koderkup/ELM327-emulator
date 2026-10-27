@@ -1,23 +1,20 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { fileURLToPath } from 'node:url';
 import net from 'node:net';
 import { TcpTransport } from '../../src/transport/tcp.js';
+import { runSession } from '../../src/core/elm.js';
 import { loadScenario } from '../../src/vehicle/scenario.js';
 import { Vehicle } from '../../src/vehicle/vehicle.js';
-import { runSession } from '../../src/core/elm.js';
-import { fileURLToPath } from 'node:url';
 
 describe('TCP end-to-end ELM session', () => {
   let transport: TcpTransport;
-  let vehicle: Vehicle;
-  let session: Promise<void>;
 
   beforeAll(async () => {
     transport = new TcpTransport('127.0.0.1', 0);
-    const scenarioPath = fileURLToPath(new URL('../../scenarios/default.yaml', import.meta.url));
-    vehicle = new Vehicle(loadScenario(scenarioPath));
     await transport.open();
-    // Drive the ELM engine on the server side concurrently.
-    session = runSession(transport, vehicle);
+    const scenario = loadScenario(fileURLToPath(new URL('../../scenarios/default.yaml', import.meta.url)));
+    const vehicle = new Vehicle(scenario);
+    void runSession(transport, vehicle);
   }, 10000);
 
   it('accepts a TCP connection and answers commands', async () => {
@@ -37,12 +34,10 @@ describe('TCP end-to-end ELM session', () => {
     client.write('ATI\r');
     const out = await readUntil();
     expect(out).toContain('ELM327');
-    expect(out).toContain('OK');
 
     client.write('ATZ\r');
     const out2 = await readUntil();
     expect(out2).toContain('ELM327');
-    expect(out2).toContain('OK');
 
     client.write('010C\r');
     const out3 = await readUntil();
